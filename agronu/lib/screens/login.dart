@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'home.dart';
-import 'sign_up.dart';
+import 'sign_up.dart'; // Make sure this file exists
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -19,7 +19,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool showOtpField = false;
   bool isLoading = false;
 
-  // ✅ Send OTP
+  // Send OTP
   Future<void> sendOtp() async {
     String phone = '+91${phoneController.text.trim()}';
 
@@ -36,9 +36,10 @@ class _LoginScreenState extends State<LoginScreen> {
       phoneNumber: phone,
       timeout: const Duration(seconds: 60),
       verificationCompleted: (PhoneAuthCredential credential) async {
-        // For test numbers, auto-login
-        await FirebaseAuth.instance.signInWithCredential(credential);
-        await saveUserToFirestore(phone);
+        final userCredential = await FirebaseAuth.instance.signInWithCredential(
+          credential,
+        );
+        await saveUserToFirestore(phone, userCredential.user!.uid);
         goToHome();
       },
       verificationFailed: (FirebaseAuthException e) {
@@ -60,30 +61,32 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // ✅ Verify OTP
+  // Verify OTP
   Future<void> verifyOtp() async {
     String otp = otpController.text.trim();
-    String phone = '+91${phoneController.text.trim()}';
 
-    if (otp.isEmpty || otp.length != 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid 6-digit OTP')),
-      );
+    if (otp.length != 6 || verificationId == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Invalid OTP. Try again.')));
       return;
     }
+
+    PhoneAuthCredential credential = PhoneAuthProvider.credential(
+      verificationId: verificationId!,
+      smsCode: otp,
+    );
 
     setState(() => isLoading = true);
 
     try {
-      PhoneAuthCredential credential = PhoneAuthProvider.credential(
-        verificationId: verificationId!,
-        smsCode: otp,
+      final userCredential = await FirebaseAuth.instance.signInWithCredential(
+        credential,
       );
 
-      UserCredential userCredential = await FirebaseAuth.instance
-          .signInWithCredential(credential);
-
+      String phone = '+91${phoneController.text.trim()}';
       await saveUserToFirestore(phone, userCredential.user!.uid);
+
       goToHome();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -94,19 +97,18 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => isLoading = false);
   }
 
-  // ✅ Save phone number to Firestore
-  Future<void> saveUserToFirestore(String phone, [String? uid]) async {
-    final userId = uid ?? FirebaseAuth.instance.currentUser!.uid;
-
-    await FirebaseFirestore.instance.collection('users').doc(userId).set({
-      'uid': userId,
+  // Save phone number in Firestore
+  Future<void> saveUserToFirestore(String phone, String uid) async {
+    await FirebaseFirestore.instance.collection('users').doc(uid).set({
+      'uid': uid,
       'phone': phone,
       'timestamp': FieldValue.serverTimestamp(),
     });
   }
 
-  // ✅ Navigate to Home Page
+  // Navigate to home
   void goToHome() {
+    print("➡️ Navigating to Home");
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (_) => const HomePage()),
@@ -164,7 +166,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     : 'Send OTP',
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             TextButton(
               onPressed: () {
                 Navigator.push(

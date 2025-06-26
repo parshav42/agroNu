@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'home.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({Key? key}) : super(key: key);
@@ -18,6 +20,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
+  // ✅ Send OTP
   void sendOtp() async {
     String phone = phoneController.text.trim();
 
@@ -35,9 +38,13 @@ class _SignupScreenState extends State<SignupScreen> {
     await _auth.verifyPhoneNumber(
       phoneNumber: '+91$phone',
       verificationCompleted: (PhoneAuthCredential credential) async {
-        // Auto verification (optional)
-        await _auth.signInWithCredential(credential);
-        showSuccess();
+        final userCredential = await _auth.signInWithCredential(credential);
+        await saveUserToFirestore(
+          userCredential.user!.uid,
+          nameController.text.trim(),
+          phone,
+        );
+        goToHome();
       },
       verificationFailed: (FirebaseAuthException e) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -56,8 +63,12 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
+  // ✅ Verify OTP
   void verifyOtp() async {
     String otp = otpController.text.trim();
+    String name = nameController.text.trim();
+    String phone = phoneController.text.trim();
+
     if (otp.length != 6) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a 6-digit OTP')),
@@ -70,8 +81,9 @@ class _SignupScreenState extends State<SignupScreen> {
         verificationId: verificationId!,
         smsCode: otp,
       );
-      await _auth.signInWithCredential(credential);
-      showSuccess();
+      final userCredential = await _auth.signInWithCredential(credential);
+      await saveUserToFirestore(userCredential.user!.uid, name, phone);
+      goToHome();
     } catch (e) {
       ScaffoldMessenger.of(
         context,
@@ -79,11 +91,26 @@ class _SignupScreenState extends State<SignupScreen> {
     }
   }
 
-  void showSuccess() {
-    ScaffoldMessenger.of(
+  // ✅ Save user data
+  Future<void> saveUserToFirestore(
+    String uid,
+    String name,
+    String phone,
+  ) async {
+    await FirebaseFirestore.instance.collection('users').doc(uid).set({
+      'uid': uid,
+      'name': name,
+      'phone': '+91$phone',
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+  }
+
+  // ✅ Navigate to Home
+  void goToHome() {
+    Navigator.pushReplacement(
       context,
-    ).showSnackBar(const SnackBar(content: Text('Phone number verified!')));
-    // You can navigate or save user data here
+      MaterialPageRoute(builder: (_) => const HomePage()),
+    );
   }
 
   @override
@@ -96,44 +123,46 @@ class _SignupScreenState extends State<SignupScreen> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            const SizedBox(height: 20),
-            const Center(
-              child: Text(
-                'agroNU',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.green,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const SizedBox(height: 20),
+              const Center(
+                child: Text(
+                  'agroNu',
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 40),
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(labelText: 'Name'),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: phoneController,
-              decoration: const InputDecoration(labelText: 'Phone Number'),
-              keyboardType: TextInputType.phone,
-            ),
-            const SizedBox(height: 16),
-            if (showOtp)
+              const SizedBox(height: 40),
               TextField(
-                controller: otpController,
-                decoration: const InputDecoration(labelText: 'Enter OTP'),
-                keyboardType: TextInputType.number,
+                controller: nameController,
+                decoration: const InputDecoration(labelText: 'Name'),
               ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: showOtp ? verifyOtp : sendOtp,
-              child: Text(showOtp ? 'Verify OTP' : 'Send OTP'),
-            ),
-          ],
+              const SizedBox(height: 16),
+              TextField(
+                controller: phoneController,
+                decoration: const InputDecoration(labelText: 'Phone Number'),
+                keyboardType: TextInputType.phone,
+              ),
+              const SizedBox(height: 16),
+              if (showOtp)
+                TextField(
+                  controller: otpController,
+                  decoration: const InputDecoration(labelText: 'Enter OTP'),
+                  keyboardType: TextInputType.number,
+                ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: showOtp ? verifyOtp : sendOtp,
+                child: Text(showOtp ? 'Verify OTP & Sign Up' : 'Send OTP'),
+              ),
+            ],
+          ),
         ),
       ),
     );
