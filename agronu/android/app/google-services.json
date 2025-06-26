@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "610586596535",
+    "project_id": "agronu-56623",
+    "storage_bucket": "agronu-56623.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:610586596535:android:35ed6a055fb63203f0e932",
+        "android_client_info": {
+          "package_name": "com.example.agronu"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC5xaQar3Egt2KTLrIEooV9YqBwilKXYJY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
