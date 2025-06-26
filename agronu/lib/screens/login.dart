@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'home.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'home.dart';
+import 'sign_up.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -35,6 +36,7 @@ class _LoginScreenState extends State<LoginScreen> {
       phoneNumber: phone,
       timeout: const Duration(seconds: 60),
       verificationCompleted: (PhoneAuthCredential credential) async {
+        // For test numbers, auto-login
         await FirebaseAuth.instance.signInWithCredential(credential);
         await saveUserToFirestore(phone);
         goToHome();
@@ -61,6 +63,8 @@ class _LoginScreenState extends State<LoginScreen> {
   // ✅ Verify OTP
   Future<void> verifyOtp() async {
     String otp = otpController.text.trim();
+    String phone = '+91${phoneController.text.trim()}';
+
     if (otp.isEmpty || otp.length != 6) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a valid 6-digit OTP')),
@@ -68,20 +72,18 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    PhoneAuthCredential credential = PhoneAuthProvider.credential(
-      verificationId: verificationId!,
-      smsCode: otp,
-    );
-
     setState(() => isLoading = true);
 
     try {
+      PhoneAuthCredential credential = PhoneAuthProvider.credential(
+        verificationId: verificationId!,
+        smsCode: otp,
+      );
+
       UserCredential userCredential = await FirebaseAuth.instance
           .signInWithCredential(credential);
 
-      String phone = '+91${phoneController.text.trim()}';
       await saveUserToFirestore(phone, userCredential.user!.uid);
-
       goToHome();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -92,7 +94,7 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => isLoading = false);
   }
 
-  // ✅ Save user info in Firestore
+  // ✅ Save phone number to Firestore
   Future<void> saveUserToFirestore(String phone, [String? uid]) async {
     final userId = uid ?? FirebaseAuth.instance.currentUser!.uid;
 
@@ -103,7 +105,7 @@ class _LoginScreenState extends State<LoginScreen> {
     });
   }
 
-  // ✅ Go to Home Page
+  // ✅ Navigate to Home Page
   void goToHome() {
     Navigator.pushReplacement(
       context,
@@ -115,7 +117,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFE8F5E9),
-      appBar: AppBar(title: const Text('Login'), backgroundColor: Colors.green),
+      appBar: AppBar(backgroundColor: Colors.green, title: const Text('Login')),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
@@ -161,6 +163,16 @@ class _LoginScreenState extends State<LoginScreen> {
                     ? 'Verify OTP'
                     : 'Send OTP',
               ),
+            ),
+            const SizedBox(height: 16),
+            TextButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SignupScreen()),
+                );
+              },
+              child: const Text("Don't have an account? Sign Up"),
             ),
           ],
         ),
